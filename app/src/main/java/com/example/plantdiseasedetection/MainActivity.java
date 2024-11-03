@@ -2,6 +2,7 @@ package com.example.plantdiseasedetection;
 
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.Picture;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
@@ -11,11 +12,13 @@ import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.app.AlertDialog;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -29,6 +32,7 @@ import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity{
 
@@ -39,6 +43,9 @@ public class MainActivity extends AppCompatActivity{
     Button picture, galleryButton, moreInfoButton;
 
     int imageSize = 224; //default image size
+
+    private ImageAugmenter imageAugmenter;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +71,14 @@ public class MainActivity extends AppCompatActivity{
         arrowImage.setVisibility(View.VISIBLE);
         classification.setVisibility(View.GONE);
         result.setVisibility(View.GONE);
+
+        imageAugmenter = new ImageAugmenter();
+        progressBar = findViewById(R.id.progressBar);
+
+        progressBar.getIndeterminateDrawable().setColorFilter(
+                Color.WHITE,
+                android.graphics.PorterDuff.Mode.SRC_IN
+        );
 
         picture.setOnClickListener(new View.OnClickListener() {
             @RequiresApi(api = Build.VERSION_CODES.M)
@@ -152,64 +167,110 @@ public class MainActivity extends AppCompatActivity{
     }
 
     private void classifyImage(Bitmap image) {
-        try {
-            DiseaseDetection model = DiseaseDetection.newInstance(getApplicationContext());
+        progressBar.setVisibility(View.VISIBLE);
+        result.setVisibility(View.GONE);
+        moreInfoButton.setVisibility(View.GONE);
 
-            // Create input for reference
-            TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, imageSize, imageSize, 3}, DataType.FLOAT32);
-            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4 * imageSize * imageSize * 3);
-            byteBuffer.order(ByteOrder.nativeOrder());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Get augmented images
+                    List<Bitmap> augmentedImages = imageAugmenter.augmentImage(image, 3);
+                    float[] finalConfidence = new float[3];
 
-            // Get 1D array of 224 * 224 pixels
-            int[] intValues = new int[imageSize * imageSize];
-            image.getPixels(intValues, 0, image.getWidth(), 0, 0, image.getWidth(), image.getHeight());
+                    // Process each augmented image
+                    for (Bitmap augImage : augmentedImages) {
+                        DiseaseDetection model = DiseaseDetection.newInstance(getApplicationContext());
+                        Bitmap resizedImage = Bitmap.createScaledBitmap(augImage, imageSize, imageSize, false);
 
-            // Iterate over pixels and extract RGB values, add to bytebuffer
-            int pixel = 0;
-            for (int i = 0; i < imageSize; i++) {
-                for (int j = 0; j < imageSize; j++) {
-                    int val = intValues[pixel++]; // RGB
-                    byteBuffer.putFloat(((val >> 16) & 0xFF) * (1.f / 255.f));
-                    byteBuffer.putFloat(((val >> 8) & 0xFF) * (1.f / 255.f));
-                    byteBuffer.putFloat((val & 0xFF) * (1.f / 255.f));
+                        // Create input for reference
+                        TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, imageSize, imageSize, 3}, DataType.FLOAT32);
+                        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4 * imageSize * imageSize * 3);
+                        byteBuffer.order(ByteOrder.nativeOrder());
+
+                        // Get 1D array of 224 * 224 pixels
+                        int[] intValues = new int[imageSize * imageSize];
+                        resizedImage.getPixels(intValues, 0, resizedImage.getWidth(), 0, 0, resizedImage.getWidth(), resizedImage.getHeight());
+
+                        // Iterate over pixels and extract RGB values, add to bytebuffer
+                        int pixel = 0;
+                        for (int i = 0; i < imageSize; i++) {
+                            for (int j = 0; j < imageSize; j++) {
+                                int val = intValues[pixel++]; // RGB
+                                byteBuffer.putFloat(((val >> 16) & 0xFF) * (1.f / 255.f));
+                                byteBuffer.putFloat(((val >> 8) & 0xFF) * (1.f / 255.f));
+                                byteBuffer.putFloat((val & 0xFF) * (1.f / 255.f));
+                            }
+                        }
+
+                        inputFeature0.loadBuffer(byteBuffer);
+
+                        // Run model inference and get result
+                        DiseaseDetection.Outputs outputs = model.process(inputFeature0);
+                        TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
+
+                        float[] confidence = outputFeature0.getFloatArray();
+
+                        // Accumulate confidences
+                        for (int i = 0; i < confidence.length; i++) {
+                            finalConfidence[i] += confidence[i];
+                        }
+
+                        model.close();
+                    }
+
+                    // Average the confidences
+                    for (int i = 0; i < finalConfidence.length; i++) {
+                        finalConfidence[i] /= augmentedImages.size();
+                    }
+
+                    // Find the class with highest average confidence
+                    int maxPos = 0;
+                    float maxConfidence = 0;
+                    for (int i = 0; i < finalConfidence.length; i++) {
+                        if (finalConfidence[i] > maxConfidence) {
+                            maxConfidence = finalConfidence[i];
+                            maxPos = i;
+                        }
+                    }
+
+                    String[] classes = {"Maize Leaf Blight", "Coconut Yellowing Leaf", "Rice Bacterial Blight"};
+                    final String resultText = classes[maxPos];
+
+                    // Update UI on main thread
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressBar.setVisibility(View.GONE);
+                            result.setVisibility(View.VISIBLE);
+                            result.setText(resultText);
+                            moreInfoButton.setVisibility(View.VISIBLE);
+
+                            // Set up result click listener
+                            result.setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View view) {
+                                    startActivity(new Intent(Intent.ACTION_VIEW,
+                                            Uri.parse("https://www.google.com/search?q=" + resultText)));
+                                }
+                            });
+                        }
+                    });
+
+                } catch (final IOException e) {
+                    // Handle error on main thread
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressBar.setVisibility(View.GONE);
+                            Toast.makeText(MainActivity.this,
+                                    "Error processing image: " + e.getMessage(),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
                 }
             }
-
-            inputFeature0.loadBuffer(byteBuffer);
-
-            // Run model inference and get result
-            DiseaseDetection.Outputs outputs = model.process(inputFeature0);
-            TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
-
-            float[] confidence = outputFeature0.getFloatArray();
-
-            // Find the index of the class with the biggest confidence
-            int maxPos = 0;
-            float maxConfidence = 0;
-            for (int i = 0; i < confidence.length; i++) {
-                if (confidence[i] > maxConfidence) {
-                    maxConfidence = confidence[i];
-                    maxPos = i;
-                }
-            }
-
-            String[] classes = {"Maize Leaf Blight", "Coconut Yellowing Leaf", "Rice Bacterial Blight"};
-            result.setText(classes[maxPos]);
-            result.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    // Search the disease on the internet
-                    startActivity(new Intent(Intent.ACTION_VIEW,
-                            Uri.parse("https://www.google.com/search?q=" + result.getText())));
-                }
-            });
-
-            moreInfoButton.setVisibility(View.VISIBLE);
-
-            model.close();
-
-        } catch (IOException e) {
-            // Handle exception
-        }
+        }).start();
     }
 }

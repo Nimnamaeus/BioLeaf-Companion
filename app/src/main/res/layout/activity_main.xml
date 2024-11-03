@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/purple_500"
+    android:background="@color/teal_700"
     tools:context=".MainActivity">
 
     <LinearLayout
@@ -12,7 +12,7 @@
         android:layout_width="140dp"
         android:layout_height="120dp"
         android:orientation="vertical"
-        android:background="@drawable/sidebutton"
+
         android:layout_alignParentBottom="true"
         android:elevation="1dp">
 
@@ -24,11 +24,17 @@
 
             <Button
                 android:id="@+id/button"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:layout_marginStart="20dp"
-                android:layout_marginTop="30dp"
-                android:background="@drawable/camera"/>
+                android:layout_width="100dp"
+                android:layout_height="70dp"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="40dp"
+                android:background="@drawable/button_background"
+                android:clickable="true"
+                android:drawableTop="@drawable/camera"
+                android:elevation="4dp"
+                android:focusable="true"
+                android:stateListAnimator="@null"
+                tools:ignore="SpeakableTextPresentCheck" />
 
         </LinearLayout>
 
@@ -40,19 +46,25 @@
         android:layout_height="120dp"
         android:layout_alignParentBottom="true"
         android:layout_alignParentEnd="true"
-        android:background="@drawable/sidebuttonright"
+
         android:orientation="vertical">
 
         <Button
             android:id="@+id/gallery_button"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:layout_marginStart="55dp"
-            android:layout_marginTop="50dp"
-            android:background="@drawable/foldericon" />
+            android:layout_width="100dp"
+            android:layout_height="70dp"
+            android:layout_marginStart="30dp"
+            android:layout_marginTop="40dp"
+            android:background="@drawable/button_background"
+            android:clickable="true"
+            android:drawableTop="@drawable/gallery"
+            android:elevation="3dp"
+            android:focusable="true"
+            android:stateListAnimator="@null"
+            tools:ignore="SpeakableTextPresentCheck" />
 
     </LinearLayout>
-    
+
     <LinearLayout
         android:id="@+id/cardView"
         android:layout_width="match_parent"
@@ -61,7 +73,7 @@
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
         android:gravity="center"
-        android:background="@drawable/whitebg">
+        android:background="@drawable/pastebg">
 
         <ImageView
             android:layout_width="match_parent"
@@ -98,71 +110,74 @@
                 android:justificationMode="inter_word"
                 tools:targetApi="o"/>
 
-                <ImageView
-                    android:id="@+id/demoArrow"
-                    android:layout_width="170dp"
-                    android:layout_height="180dp"
-                    android:src="@drawable/arrow"
-                    android:layout_marginStart="24dp"
-                    android:layout_marginTop="24dp"
-                    android:rotation="-30"
-                    android:visibility="gone"/>
+            <ImageView
+                android:id="@+id/demoArrow"
+                android:layout_width="170dp"
+                android:layout_height="180dp"
+                android:src="@drawable/arrow"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="24dp"
+                android:rotation="-30"
+                android:visibility="gone"/>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="The Disease is Identified as:"
-                    android:textSize="19sp"
-                    android:id="@+id/classification"
-                    android:includeFontPadding="false"
-                    android:layout_marginTop="50dp"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginEnd="16dp"
-                    android:textAlignment="center"
-                    android:textColor="@color/white"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:orientation="vertical"
+            android:gravity="center">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:textColor="#FFE500"
-                    android:textSize="24sp"
-                    android:id="@+id/result"
-                    android:clickable="true"
-                    android:textAlignment="center"
-                    android:textAllCaps="true"
-                    android:includeFontPadding="false"
-                    android:letterSpacing="0.06"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginEnd="16dp"
-                    android:focusable="true"/>
+            <TextView
+                android:id="@+id/classification"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="The disease is identified as:"
+                android:textSize="20sp"
+                android:textColor="@color/white"
+                android:gravity="center"
+                android:layout_gravity="center_horizontal" />
 
-                 <Button
-                    android:id="@+id/moreInfoButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="More Info"
-                    android:visibility="gone"
-                    android:layout_marginTop="20dp"
-                    android:layout_gravity="center" />
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:indeterminateTint="@color/white"
+                android:visibility="gone" />
 
+            <TextView
+                android:id="@+id/result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textColor="@color/white"
+                android:textSize="27sp"
+                android:textStyle="bold"
+                android:gravity="center" />
 
-                <TextView
-                    android:id="@+id/clickhere"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="click on the Disease name to know more online"
-                    android:textAlignment="center"
-                    android:textColor="@color/white"
-                    android:textSize="15sp"
-                    android:letterSpacing="0.03"
-                    android:layout_marginTop="50dp"/>
+            <Button
+                android:id="@+id/moreInfoButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DIAGNOSIS"
+                android:visibility="gone"
+                android:layout_marginTop="20dp" />
 
         </LinearLayout>
 
+            <TextView
+                android:id="@+id/clickhere"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="click on the Disease name to know more online"
+                android:textAlignment="center"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                android:letterSpacing="0.03"
+                android:layout_marginTop="50dp"/>
 
+        </LinearLayout>
 
     </RelativeLayout>
-
 
 </RelativeLayout>
