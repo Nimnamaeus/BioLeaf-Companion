@@ -2,7 +2,6 @@ package com.example.plantdiseasedetection;
 
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.graphics.Picture;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
@@ -15,10 +14,13 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.Manifest;
-import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.app.AlertDialog;
 import android.widget.Toast;
+import android.app.Dialog;
+import android.graphics.drawable.ColorDrawable;
+import android.view.Window;
+import android.view.WindowManager;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -34,7 +36,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity{
+import android.graphics.Color;
+
+public class MainActivity extends AppCompatActivity {
 
     DatabaseHelper databaseHelper;
 
@@ -42,7 +46,7 @@ public class MainActivity extends AppCompatActivity{
     ImageView imageView, arrowImage;
     Button picture, galleryButton, moreInfoButton;
 
-    int imageSize = 224; //default image size
+    int imageSize = 299; // Change from 224 to 299 to match Xception's input size
 
     private ImageAugmenter imageAugmenter;
     private ProgressBar progressBar;
@@ -75,6 +79,7 @@ public class MainActivity extends AppCompatActivity{
         imageAugmenter = new ImageAugmenter();
         progressBar = findViewById(R.id.progressBar);
 
+        // Set white color programmatically
         progressBar.getIndeterminateDrawable().setColorFilter(
                 Color.WHITE,
                 android.graphics.PorterDuff.Mode.SRC_IN
@@ -111,19 +116,10 @@ public class MainActivity extends AppCompatActivity{
                 String description = databaseHelper.getDiseaseDescription(diseaseName);
 
                 if (description != null) {
-                    // Display the disease information in a pop-up
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("Diagnosis for " + diseaseName)
-                            .setMessage(description)
-                            .setPositiveButton("OK", null)
-                            .show();
+                    showCustomDialog("Diagnosis for " + diseaseName, description);
                 } else {
-                    // Handle case where no description is found
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("Information not found")
-                            .setMessage("No information available for " + diseaseName)
-                            .setPositiveButton("OK", null)
-                            .show();
+                    showCustomDialog("Information not found",
+                            "No information available for " + diseaseName);
                 }
             }
         });
@@ -197,10 +193,15 @@ public class MainActivity extends AppCompatActivity{
                         int pixel = 0;
                         for (int i = 0; i < imageSize; i++) {
                             for (int j = 0; j < imageSize; j++) {
-                                int val = intValues[pixel++]; // RGB
-                                byteBuffer.putFloat(((val >> 16) & 0xFF) * (1.f / 255.f));
-                                byteBuffer.putFloat(((val >> 8) & 0xFF) * (1.f / 255.f));
-                                byteBuffer.putFloat((val & 0xFF) * (1.f / 255.f));
+                                int val = intValues[pixel++];
+                                // Xception preprocessing: scale to [-1,1]
+                                float r = ((((val >> 16) & 0xFF) / 255.0f) - 0.5f) * 2;
+                                float g = ((((val >> 8) & 0xFF) / 255.0f) - 0.5f) * 2;
+                                float b = (((val & 0xFF) / 255.0f) - 0.5f) * 2;
+
+                                byteBuffer.putFloat(r);
+                                byteBuffer.putFloat(g);
+                                byteBuffer.putFloat(b);
                             }
                         }
 
@@ -235,7 +236,7 @@ public class MainActivity extends AppCompatActivity{
                         }
                     }
 
-                    String[] classes = {"Maize Leaf Blight", "Coconut Yellowing Leaf", "Rice Bacterial Blight"};
+                    String[] classes = {"Coconut Yellowing Leaf", "Maize Leaf Blight", "Rice Bacterial Leaf Blight"};
                     final String resultText = classes[maxPos];
 
                     // Update UI on main thread
@@ -272,5 +273,31 @@ public class MainActivity extends AppCompatActivity{
                 }
             }
         }).start();
+    }
+
+    private void showCustomDialog(String title, String description) {
+        Dialog dialog = new Dialog(MainActivity.this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.custom_dialog);
+
+        // Make dialog background transparent
+        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+
+        // Set dialog width to 90% of screen width
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+        lp.copyFrom(dialog.getWindow().getAttributes());
+        lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.9);
+        dialog.getWindow().setAttributes(lp);
+
+        TextView titleView = dialog.findViewById(R.id.dialogTitle);
+        TextView descriptionView = dialog.findViewById(R.id.dialogDescription);
+        Button okButton = dialog.findViewById(R.id.dialogButton);
+
+        titleView.setText(title);
+        descriptionView.setText(description);
+
+        okButton.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 }

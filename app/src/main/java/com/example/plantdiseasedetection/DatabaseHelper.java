@@ -30,7 +30,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         // Insert some sample data
         db.execSQL("INSERT INTO " + TABLE_NAME + " (name, description) VALUES ('Maize Leaf Blight', 'First symptoms on maize plants appear on the lower leaves. Spots that occur later, caused by spores distributed by wind, show on upper leaves. At the beginning of the infestation small, longish, watery stains arise which can grow into elongated bands of grey-green to light brown lesions.')");
         db.execSQL("INSERT INTO " + TABLE_NAME + " (name, description) VALUES ('Coconut Yellowing Leaf', 'Yellowing leaves on your coconut palm can be a red flag for nutrient deficiencies. Magnesium shortages turn older leaves yellow, while a lack of potassium causes yellowing at the tips and edges. Manganese deficiency is a bit of a sneakier villain, resulting in yellow specks or stripes.')");
-        db.execSQL("INSERT INTO " + TABLE_NAME + " (name, description) VALUES ('Rice Bacterial Blight', 'rice bacterial blight, deadly bacterial disease that is among the most destructive afflictions of cultivated rice (Oryza sativa and O. glaberrima). In severe epidemics, crop loss may be as high as 75 percent, and millions of hectares of rice are infected annually.')");
+        db.execSQL("INSERT INTO " + TABLE_NAME + " (name, description) VALUES ('Rice Bacterial Leaf Blight', 'rice bacterial blight, deadly bacterial disease that is among the most destructive afflictions of cultivated rice (Oryza sativa and O. glaberrima). In severe epidemics, crop loss may be as high as 75 percent, and millions of hectares of rice are infected annually.')");
     }
 
     @Override
@@ -42,14 +42,38 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     // Fetch the description of a disease by its name
     public String getDiseaseDescription(String diseaseName) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT description FROM " + TABLE_NAME + " WHERE name = ?", new String[]{diseaseName});
-
+        SQLiteDatabase db = null;
+        Cursor cursor = null;
         String description = null;
-        if (cursor.moveToFirst()) {
-            description = cursor.getString(0);
+
+        try {
+            db = this.getReadableDatabase();
+            cursor = db.rawQuery("SELECT description FROM " + TABLE_NAME + " WHERE name = ?",
+                    new String[]{diseaseName});
+
+            if (cursor != null && cursor.moveToFirst()) {
+                description = cursor.getString(0);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (cursor != null) cursor.close();
+            if (db != null) db.close();
         }
-        cursor.close();
         return description;
+    }
+
+    public boolean isDatabaseOutdated() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT COUNT(*) FROM " + TABLE_NAME, null);
+
+        boolean isOutdated = true;
+        if (cursor != null && cursor.moveToFirst()) {
+            int count = cursor.getInt(0);
+            isOutdated = count < 3; // Current number of diseases
+        }
+
+        if (cursor != null) cursor.close();
+        return isOutdated;
     }
 }
